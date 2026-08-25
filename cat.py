@@ -104,7 +104,8 @@ class CatController:
             return BOWL_POS["food"]
         if self.data.thirst < 40 and r < 0.5:
             return BOWL_POS["water"]
-        return (self._rng.uniform(0.05, 0.95), self._rng.uniform(0.55, 0.92))
+        # Y 范围收窄到 [0.78, 0.88]，让两只猫大致在同一水平线上
+        return (self._rng.uniform(0.05, 0.95), self._rng.uniform(0.78, 0.88))
 
     def _move_toward(self, target, dt, activity_rect=None):
         tx, ty = target
@@ -160,8 +161,8 @@ class CatController:
             self.data.thirst = clamp(self.data.thirst + 45)
             self.data.mood = clamp(self.data.mood + 6)
         else:
-            # 普通走动结束 → 调度下一动作
-            pass
+            # 普通走动结束 → 坐下（之前是 pass，猫会卡在 WALK 不切换动作）
+            self._transition(CatState.SIT)
 
     def on_click(self):
         """单击：随机简单反应。"""
@@ -173,7 +174,7 @@ class CatController:
         elif r < 0.7:
             # 轻微移动
             self.walk_target = (self._rng.uniform(0.05, 0.95),
-                                self._rng.uniform(0.55, 0.92))
+                                self._rng.uniform(0.78, 0.88))
             self._transition(CatState.WALK)
         else:
             self._transition(CatState.GROOM)
@@ -187,7 +188,7 @@ class CatController:
             self._transition(CatState.ROLL)
         elif r < 0.7:
             self.walk_target = (self._rng.uniform(0.05, 0.95),
-                                self._rng.uniform(0.55, 0.92))
+                                self._rng.uniform(0.78, 0.88))
             self._transition(CatState.WALK)
         else:
             self._transition(CatState.STRETCH)
@@ -199,5 +200,5 @@ class CatController:
             self._transition(CatState.SIT)
         else:
             self.walk_target = (self._rng.uniform(0.05, 0.95),
-                                self._rng.uniform(0.55, 0.92))
+                                self._rng.uniform(0.78, 0.88))
             self._transition(CatState.WALK)

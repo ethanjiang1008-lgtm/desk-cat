@@ -227,14 +227,14 @@ class PetWindow(QWidget):
     def _first_appear(self):
         # 从两边走入
         self.cat_a.data.x = -0.05
-        self.cat_a.data.y = 0.7
+        self.cat_a.data.y = 0.82
         self.cat_a.data.facing = 1
-        self.cat_a.walk_target = (0.30, 0.65)
+        self.cat_a.walk_target = (0.30, 0.82)
         self.cat_a._transition(CatState.WALK)
         self.cat_b.data.x = 1.05
-        self.cat_b.data.y = 0.7
+        self.cat_b.data.y = 0.82
         self.cat_b.data.facing = -1
-        self.cat_b.walk_target = (0.62, 0.66)
+        self.cat_b.walk_target = (0.62, 0.82)
         self.cat_b._transition(CatState.WALK)
         self._first_appear_done = True
 
@@ -385,7 +385,10 @@ class PetWindow(QWidget):
                     lp = msg.lParam
                     x = ctypes.c_short(lp & 0xFFFF).value
                     y = ctypes.c_short((lp >> 16) & 0xFFFF).value
-                    pt = self.mapFromGlobal(QPoint(x, y))
+                    # WM_NCHITTEST 给的是物理像素坐标，
+                    # Qt6 mapFromGlobal 用逻辑像素，高 DPI 下必须除以 DPR
+                    dpr = self.devicePixelRatioF() or 1.0
+                    pt = self.mapFromGlobal(QPoint(int(x / dpr), int(y / dpr)))
                     child = self.childAt(pt)
                     opaque = False
                     if isinstance(child, CatSprite):

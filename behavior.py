@@ -34,7 +34,7 @@ STATE_DURATION = {
     CatState.WALK: (2.5, 5.0),
     CatState.ROLL: (3.0, 4.0),
     CatState.GROOM: (3.5, 6.0),
-    CatState.SLEEP: (40.0, 120.0),
+    CatState.SLEEP: (15.0, 40.0),
     CatState.STRETCH: (2.5, 3.5),
     CatState.DRINK: (3.0, 4.0),
     CatState.EAT: (3.0, 4.0),

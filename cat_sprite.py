@@ -4,7 +4,7 @@
 按目标尺寸缩放、按朝向水平翻转，自绘 alpha。
 缓存当前显示帧 QImage，供窗口做逐像素点击穿透判定。"""
 from PySide6.QtCore import Qt, Signal, QRectF, QPointF, QTimer
-from PySide6.QtGui import QPixmap, QPainter, QTransform, QImage
+from PySide6.QtGui import QPixmap, QPainter, QTransform, QImage, QColor
 from PySide6.QtWidgets import QWidget
 
 from config import asset_path, SIZE_PRESETS
@@ -34,7 +34,7 @@ class CatSprite(QWidget):
         self._facing = 1
         self._display_h = SIZE_PRESETS["medium"]
         self._display_w = 140
-        self._pix = None             # 当前源帧 QImage（原始尺寸）
+        self._pix = None             # 当前源帧 QImage（原始尺寸 360x206）
         self._disp_img = QImage()    # 缓存的显示帧（含 alpha，display 尺寸）
         self._dragging = False
         self._drag_press = None
@@ -76,10 +76,16 @@ class CatSprite(QWidget):
         self.update()
 
     def set_action(self, action: str, facing: int = 1):
+        old_facing = self._facing
         self._facing = facing
+        # 同动作同朝向 → 只重绘
         if action == self._cur_action and action in self._frames:
+            # 朝向变了 → 需要重建 _disp_img（用于点击穿透判定）
+            if old_facing != facing:
+                self._rebuild_disp_img()
             self.update()
             return
+        # 加载新动作
         if action not in self._frames:
             frames = self._load_action(action)
             if frames is None:
@@ -119,9 +125,11 @@ class CatSprite(QWidget):
             return
         pix = self._pix
         if self._facing < 0:
+            # 镜像翻转：translate 必须用源帧宽度（360），不能用 _display_w（244）
+            # 否则翻转后画面被裁剪+拉伸 → 失真
             t = QTransform()
             t.scale(-1, 1)
-            t.translate(-self._display_w, 0)
+            t.translate(-pix.width(), 0)
             pix = pix.transformed(t, Qt.SmoothTransformation)
         self._disp_img = pix.scaled(
             self._display_w, self._display_h,
@@ -142,14 +150,21 @@ class CatSprite(QWidget):
     def paintEvent(self, e):
         p = QPainter(self)
         p.setRenderHint(QPainter.SmoothPixmapTransform, True)
+        # 先清除背景，防止透明窗口下画面残留累积（"逐渐放大"的视觉假象）
+        p.setCompositionMode(QPainter.CompositionMode_Clear)
+        p.fillRect(self.rect(), Qt.transparent)
+        p.setCompositionMode(QPainter.CompositionMode_SourceOver)
+
         if self._pix is None or self._pix.isNull():
+            p.end()
             return
         pix = self._pix
         tgt = QRectF(0, 0, self._display_w, self._display_h)
         if self._facing < 0:
+            # 镜像翻转：translate 用源帧宽度，不用 _display_w
             t = QTransform()
             t.scale(-1, 1)
-            t.translate(-self._display_w, 0)
+            t.translate(-pix.width(), 0)
             pix_t = pix.transformed(t, Qt.SmoothTransformation)
             p.drawImage(tgt, pix_t, QRectF(0, 0, pix_t.width(), pix_t.height()))
         else:

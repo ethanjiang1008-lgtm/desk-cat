@@ -58,8 +58,8 @@ class Settings:
 
 
 def default_state() -> Tuple[CatState, CatState, Settings]:
-    a = CatState(name="小橘", x=0.30, y=0.62, facing=1, last_state="sit")
-    b = CatState(name="小灰", x=0.62, y=0.66, facing=-1, last_state="sit")
+    a = CatState(name="小橘", x=0.30, y=0.82, facing=1, last_state="sit")
+    b = CatState(name="小灰", x=0.62, y=0.82, facing=-1, last_state="sit")
     s = Settings()
     return a, b, s
 
