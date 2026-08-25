@@ -14,7 +14,7 @@ from PySide6.QtGui import QGuiApplication, QPixmap, QPainter, QColor, QFont
 from PySide6.QtWidgets import (QWidget, QLabel, QMenu, QApplication)
 
 from config import (SIZE_PRESETS, AREA_PRESETS, ACTION_WALK, ACTION_SIT,
-                   BOWL_POS, clamp, asset_path)
+                   BOWL_POS, clamp, asset_path, CAT_A_X_RANGE, CAT_B_X_RANGE)
 from behavior import CatState
 from cat import CatController
 from cat_sprite import CatSprite
@@ -86,11 +86,17 @@ class PetWindow(QWidget):
 
         self._connect_sprite(self.sprite_a, self.cat_a)
         self._connect_sprite(self.sprite_b, self.cat_b)
+        # 互动叠加层也接受点击 → 结束互动
+        self.inter_sprite.clicked.connect(self._on_inter_click)
+        self.inter_sprite.right_clicked.connect(lambda gp: self._on_right(self.cat_a, gp))
+        # 各自活动区域
+        self.cat_a.x_range = CAT_A_X_RANGE
+        self.cat_b.x_range = CAT_B_X_RANGE
 
         # 主循环
         self._last_t = time.time()
         self._timer = QTimer(self)
-        self._timer.setInterval(80)
+        self._timer.setInterval(33)   # 30 FPS，行走更流畅（原 80ms=12.5 FPS 卡顿）
         self._timer.timeout.connect(self._tick)
         self._autosave = QTimer(self)
         self._autosave.setInterval(30000)
@@ -213,7 +219,7 @@ class PetWindow(QWidget):
             return
         a, b = self.cat_a.data, self.cat_b.data
         d = math.hypot(a.x - b.x, a.y - b.y)
-        min_d = 0.06
+        min_d = 0.15  # 增大避让距离，避免画面叠加失真
         if 0 < d < min_d:
             push = (min_d - d) / 2
             dx = (a.x - b.x) / d if d > 0 else 1
@@ -244,6 +250,15 @@ class PetWindow(QWidget):
             return
         cat.on_click()
         cat.data.mood = clamp(cat.data.mood + 3)
+
+    def _on_inter_click(self):
+        """互动叠加层被点击 → 提前结束互动，两只猫各自回区域。"""
+        if not self.settings.click_enabled:
+            return
+        if self.director.active:
+            self.director.active_timer = 0.01  # 触发下一帧结束
+        self.cat_a.data.mood = clamp(self.cat_a.data.mood + 3)
+        self.cat_b.data.mood = clamp(self.cat_b.data.mood + 3)
 
     def _on_dblclick(self, cat):
         if not self.settings.click_enabled:

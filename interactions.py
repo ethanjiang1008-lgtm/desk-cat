@@ -98,12 +98,14 @@ class InteractionDirector:
         self.active = None
         self.cat_a.interacting = False
         self.cat_b.interacting = False
-        # 分开走开
+        # 各自回到自己的活动区域
         mx, my = self._mid
-        self.cat_a.walk_target = (max(0.05, mx - self.rng.uniform(0.15, 0.3)),
-                                  self.rng.uniform(0.55, 0.9))
-        self.cat_b.walk_target = (min(0.95, mx + self.rng.uniform(0.15, 0.3)),
-                                  self.rng.uniform(0.55, 0.9))
+        ax_lo, ax_hi = self.cat_a.x_range
+        bx_lo, bx_hi = self.cat_b.x_range
+        self.cat_a.walk_target = (self.rng.uniform(ax_lo, ax_hi),
+                                  self.rng.uniform(0.78, 0.88))
+        self.cat_b.walk_target = (self.rng.uniform(bx_lo, bx_hi),
+                                  self.rng.uniform(0.78, 0.88))
         self.cat_a._transition(CatState.WALK)
         self.cat_b._transition(CatState.WALK)
         self.cooldown = self.rng.uniform(45, 90)

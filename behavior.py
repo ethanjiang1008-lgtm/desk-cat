@@ -30,14 +30,14 @@ class CatState(Enum):
 
 # 每个状态的基础停留时长（秒），实际会加随机抖动
 STATE_DURATION = {
-    CatState.SIT: (3.0, 7.0),
-    CatState.WALK: (2.5, 5.0),
-    CatState.ROLL: (3.0, 4.0),
-    CatState.GROOM: (3.5, 6.0),
+    CatState.SIT: (4.0, 10.0),      # 坐更久，动作之间有自然停顿
+    CatState.WALK: (3.0, 6.0),      # 走路稍长，避免频繁切换
+    CatState.ROLL: (3.0, 5.0),
+    CatState.GROOM: (4.0, 7.0),
     CatState.SLEEP: (15.0, 40.0),
-    CatState.STRETCH: (2.5, 3.5),
-    CatState.DRINK: (3.0, 4.0),
-    CatState.EAT: (3.0, 4.0),
+    CatState.STRETCH: (2.5, 4.0),
+    CatState.DRINK: (3.0, 4.5),
+    CatState.EAT: (3.0, 5.0),
 }
 
 # 动作是否循环播放（走路/睡觉等需要循环直到完成）

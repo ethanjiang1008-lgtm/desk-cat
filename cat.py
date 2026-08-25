@@ -28,6 +28,9 @@ class CatController:
         self.walk_speed = 0.12          # 相对坐标/秒（会被外部按尺寸修正）
         self.interacting = False        # 互动期间由导演接管
         self._rng = random.Random(seed)
+        self.x_range = (0.05, 0.95)     # 活动区域 X 范围，由 PetWindow 设置
+        self._walk_total_dist = None    # 当前行走的总距离（用于 ease-in/out）
+        self._last_walk_target = None   # 记录上次行走目标，变化时重置
 
     # —— 属性 ——
     def stats(self, relationship: float, is_sleep_time: bool) -> Stats:
@@ -104,8 +107,9 @@ class CatController:
             return BOWL_POS["food"]
         if self.data.thirst < 40 and r < 0.5:
             return BOWL_POS["water"]
-        # Y 范围收窄到 [0.78, 0.88]，让两只猫大致在同一水平线上
-        return (self._rng.uniform(0.05, 0.95), self._rng.uniform(0.78, 0.88))
+        # X 限制在各自活动区域内，Y 收窄到 [0.78, 0.88]
+        return (self._rng.uniform(self.x_range[0], self.x_range[1]),
+                self._rng.uniform(0.78, 0.88))
 
     def _move_toward(self, target, dt, activity_rect=None):
         tx, ty = target
@@ -113,18 +117,34 @@ class CatController:
         dy = ty - self.data.y
         dist = math.hypot(dx, dy)
         if dist < 1e-4:
+            self._walk_total_dist = None
             return
         # 朝向
         self.data.facing = 1 if dx >= 0 else -1
-        # 步长（相对坐标），限制不超过距离
-        step = self.walk_speed * dt
+        # 检测新目标 → 重置行走总距离
+        if getattr(self, '_last_walk_target', None) != target:
+            self._last_walk_target = target
+            self._walk_total_dist = None
+        # Ease-in/out：起步加速、到点减速，避免机械线性移动
+        if getattr(self, '_walk_total_dist', None) is None:
+            self._walk_total_dist = max(dist, 1e-4)
+        total = self._walk_total_dist
+        progress = max(0.0, min(1.0, 1.0 - dist / total)) if total > 0 else 0
+        if progress < 0.2:
+            speed_mult = 0.3 + 3.5 * progress       # 0.3 → 1.0 起步
+        elif progress > 0.8:
+            speed_mult = 0.3 + 3.5 * (1.0 - progress)  # 1.0 → 0.3 到点
+        else:
+            speed_mult = 1.0
+        step = self.walk_speed * dt * speed_mult
         if step >= dist:
             self.data.x, self.data.y = tx, ty
+            self._walk_total_dist = None
         else:
             self.data.x += dx / dist * step
             self.data.y += dy / dist * step
-        # 限制在活动区域内
-        self.data.x = max(0.0, min(1.0, self.data.x))
+        # 限制在各自活动区域内
+        self.data.x = max(self.x_range[0], min(self.x_range[1], self.data.x))
         self.data.y = max(0.0, min(1.0, self.data.y))
 
     def _reached(self, target, eps=0.02):
@@ -172,8 +192,8 @@ class CatController:
         if r < 0.4:
             self._transition(CatState.SIT)
         elif r < 0.7:
-            # 轻微移动
-            self.walk_target = (self._rng.uniform(0.05, 0.95),
+            # 轻微移动（限各自区域）
+            self.walk_target = (self._rng.uniform(self.x_range[0], self.x_range[1]),
                                 self._rng.uniform(0.78, 0.88))
             self._transition(CatState.WALK)
         else:
@@ -187,7 +207,7 @@ class CatController:
         if r < 0.4:
             self._transition(CatState.ROLL)
         elif r < 0.7:
-            self.walk_target = (self._rng.uniform(0.05, 0.95),
+            self.walk_target = (self._rng.uniform(self.x_range[0], self.x_range[1]),
                                 self._rng.uniform(0.78, 0.88))
             self._transition(CatState.WALK)
         else:
@@ -199,6 +219,6 @@ class CatController:
         if self._rng.random() < 0.5:
             self._transition(CatState.SIT)
         else:
-            self.walk_target = (self._rng.uniform(0.05, 0.95),
+            self.walk_target = (self._rng.uniform(self.x_range[0], self.x_range[1]),
                                 self._rng.uniform(0.78, 0.88))
             self._transition(CatState.WALK)

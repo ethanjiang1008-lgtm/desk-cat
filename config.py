@@ -52,6 +52,10 @@ RELATIONSHIP_DECAY = 0.01
 # —— 喝水/吃饭地点（在活动区域内的相对位置 0~1）——
 BOWL_POS = {"food": (0.10, 0.88), "water": (0.90, 0.88)}
 
+# —— 两只猫各自的活动区域（X 范围 0~1，避免交叉导致遮挡/画面叠加）——
+CAT_A_X_RANGE = (0.02, 0.48)   # 猫A 左半区
+CAT_B_X_RANGE = (0.52, 0.98)   # 猫B 右半区
+
 
 def clamp(v):
     """把数值限制到 STAT_MIN..STAT_MAX。"""

@@ -59,7 +59,8 @@ class CatSprite(QWidget):
             w, h = rgba.size
             # QImage 不复制 data 缓冲，必须 .copy() 深拷贝防止 Python bytes 被回收
             qimg = QImage(data, w, h, QImage.Format_RGBA8888).copy()
-            duration = frame.info.get("duration", 120)
+            # 帧时长上限 80ms（部分 WebP 帧 120ms 导致动画卡顿不流畅）
+            duration = min(frame.info.get("duration", 120), 80)
             frames.append((qimg, max(40, duration)))
         return frames if frames else None
 
