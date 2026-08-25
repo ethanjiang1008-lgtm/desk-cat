@@ -31,6 +31,8 @@ class CatController:
         self.x_range = (0.05, 0.95)     # 活动区域 X 范围，由 PetWindow 设置
         self._walk_total_dist = None    # 当前行走的总距离（用于 ease-in/out）
         self._last_walk_target = None   # 记录上次行走目标，变化时重置
+        self._bowls = None              # 各猫自己的碗位置，由 PetWindow 设置
+        self._director_approach = False # 互动导演接近阶段（不自动切换状态）
 
     # —— 属性 ——
     def stats(self, relationship: float, is_sleep_time: bool) -> Stats:
@@ -79,16 +81,30 @@ class CatController:
 
         self.phase_timer -= dt
         if self.phase_timer <= 0 and self.walk_target is None:
-            # 选择下一个状态
-            nxt = self._choose_next(relationship, is_sleep_time)
-            self._transition(nxt)
+            # 导演接近阶段 → 不自动切换状态
+            if getattr(self, '_director_approach', False):
+                self._transition(CatState.SIT)  # 到达后坐下等导演
+            else:
+                nxt = self._choose_next(relationship, is_sleep_time)
+                self._transition(nxt)
 
     def _choose_next(self, relationship, is_sleep_time):
         st = self.stats(relationship, is_sleep_time)
         nxt = self.scheduler.next_state(self.current, st)
-        # 如果选了走动，先决定目标
         if nxt == CatState.WALK:
             self.walk_target = self._pick_walk_target(relationship, is_sleep_time)
+        elif nxt == CatState.DRINK:
+            # 先走到水碗，到达后再喝水（避免原地喝水闪烁）
+            bowls = self._bowls or BOWL_POS
+            self.walk_target = bowls["water"]
+            self._pending_arrive = "drink"
+            nxt = CatState.WALK
+        elif nxt == CatState.EAT:
+            # 先走到食碗，到达后再吃饭
+            bowls = self._bowls or BOWL_POS
+            self.walk_target = bowls["food"]
+            self._pending_arrive = "eat"
+            nxt = CatState.WALK
         return nxt
 
     def _transition(self, nxt: CatState):
@@ -100,14 +116,8 @@ class CatController:
         self.phase_timer = self.scheduler.duration_for(nxt)
 
     def _pick_walk_target(self, relationship, is_sleep_time):
-        # 随机点 / 食碗 / 水碗
-        self._rng = random.Random()
-        r = self._rng.random()
-        if self.data.hunger < 35 and r < 0.5:
-            return BOWL_POS["food"]
-        if self.data.thirst < 40 and r < 0.5:
-            return BOWL_POS["water"]
-        # X 限制在各自活动区域内，Y 收窄到 [0.78, 0.88]
+        # 只在各自活动区域内随机走动
+        # （吃饭/喝水由 _choose_next 单独处理，走路时不再随机去碗）
         return (self._rng.uniform(self.x_range[0], self.x_range[1]),
                 self._rng.uniform(0.78, 0.88))
 
@@ -155,15 +165,16 @@ class CatController:
         """用户喂食 → 走向食碗 → 吃饭。"""
         if self.interacting:
             return
-        self.walk_target = BOWL_POS["food"]
+        bowls = self._bowls or BOWL_POS
+        self.walk_target = bowls["food"]
         self._transition(CatState.WALK)
-        # 到达后自动转 eat（由 PetWindow 监测到达触发 _arrive_eat）
         self._pending_arrive = "eat"
 
     def water(self):
         if self.interacting:
             return
-        self.walk_target = BOWL_POS["water"]
+        bowls = self._bowls or BOWL_POS
+        self.walk_target = bowls["water"]
         self._transition(CatState.WALK)
         self._pending_arrive = "drink"
 

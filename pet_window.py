@@ -14,7 +14,8 @@ from PySide6.QtGui import QGuiApplication, QPixmap, QPainter, QColor, QFont
 from PySide6.QtWidgets import (QWidget, QLabel, QMenu, QApplication)
 
 from config import (SIZE_PRESETS, AREA_PRESETS, ACTION_WALK, ACTION_SIT,
-                   BOWL_POS, clamp, asset_path, CAT_A_X_RANGE, CAT_B_X_RANGE)
+                   BOWL_POS, BOWL_POS_A, BOWL_POS_B, clamp, asset_path,
+                   CAT_A_X_RANGE, CAT_B_X_RANGE)
 from behavior import CatState
 from cat import CatController
 from cat_sprite import CatSprite
@@ -92,6 +93,9 @@ class PetWindow(QWidget):
         # 各自活动区域
         self.cat_a.x_range = CAT_A_X_RANGE
         self.cat_b.x_range = CAT_B_X_RANGE
+        # 各自的碗位置（在各自活动区域内）
+        self.cat_a._bowls = BOWL_POS_A
+        self.cat_b._bowls = BOWL_POS_B
 
         # 主循环
         self._last_t = time.time()
@@ -351,20 +355,25 @@ class PetWindow(QWidget):
         if key in self._fired:
             return
         self._fired.add(key)
-        # 选一只猫提醒
-        cat = self.cat_a if self.cat_a.data.hunger < self.cat_b.data.hunger else self.cat_b
+        # 选一只猫提醒（喝水选更渴的，吃饭选更饿的）
+        if kind == "drink":
+            cat = self.cat_a if self.cat_a.data.thirst < self.cat_b.data.thirst else self.cat_b
+        else:
+            cat = self.cat_a if self.cat_a.data.hunger < self.cat_b.data.hunger else self.cat_b
         msg = "该喝水啦～" if kind == "drink" else "该吃饭啦～"
         r = self._area_rect
         bx = cat.data.x * r.width()
         by = cat.data.y * r.height() - 8
         self.bubble.show_msg(msg, bx, by)
-        # 猫走向用户（屏幕中下）
-        cat.walk_target = (0.5, 0.85) if kind == "drink" else (BOWL_POS["food"][0], BOWL_POS["food"][1])
-        cat._transition(CatState.WALK)
+        # 猫走向自己的碗（在各自活动区域内）
+        bowls = cat._bowls or BOWL_POS
         if kind == "drink":
+            cat.walk_target = bowls["water"]
             cat._pending_arrive = "drink"
         else:
+            cat.walk_target = bowls["food"]
             cat._pending_arrive = "eat"
+        cat._transition(CatState.WALK)
         QTimer.singleShot(6000, self.bubble.hide)
 
     def _do_autosave(self):

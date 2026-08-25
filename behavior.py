@@ -68,21 +68,21 @@ class BehaviorScheduler:
     def _base_weights(self, stats: Stats) -> dict:
         """计算各状态的权重。"""
         w = {
-            CatState.WALK: 30,
-            CatState.SIT: 24,
-            CatState.GROOM: 16,
-            CatState.ROLL: 6,
+            CatState.WALK: 28,
+            CatState.SIT: 30,
+            CatState.GROOM: 14,
+            CatState.ROLL: 5,
             CatState.SLEEP: 10,
-            CatState.DRINK: 7,
-            CatState.EAT: 7,
-            CatState.STRETCH: 4,
+            CatState.DRINK: 0,    # 只在口渴时触发（基础权重=0）
+            CatState.EAT: 0,      # 只在饥饿时触发（基础权重=0）
+            CatState.STRETCH: 3,
         }
         # —— 条件加权 ——
-        # 口渴
-        if stats.thirst < 25:
-            w[CatState.DRINK] += 40 * (1 - stats.thirst / 25)
-        if stats.hunger < 30:
-            w[CatState.EAT] += 40 * (1 - stats.hunger / 30)
+        # 口渴 → 只有渴了才喝水
+        if stats.thirst < 30:
+            w[CatState.DRINK] += 50 * (1 - stats.thirst / 30)
+        if stats.hunger < 35:
+            w[CatState.EAT] += 50 * (1 - stats.hunger / 35)
         # 精力低 → 高概率睡觉
         if stats.energy < 25:
             w[CatState.SLEEP] += 50 * (1 - stats.energy / 25)
@@ -130,14 +130,14 @@ class BehaviorScheduler:
             return CatState.STRETCH
 
         weights = self._base_weights(stats)
-        # 当前是走路/吃饭/喝水这类目标行为，完成后倾向于坐下
+        # 当前是走路/吃饭/喝水这类目标行为，完成后倾向于坐下休息
         if current in (CatState.WALK, CatState.EAT, CatState.DRINK, CatState.ROLL,
                        CatState.GROOM, CatState.STRETCH):
-            weights[CatState.SIT] += 14
-        # 当前坐着 → 鼓励换个动作
+            weights[CatState.SIT] += 18   # 完成动作后多坐一会儿
+        # 当前坐着 → 轻微鼓励换个动作（不要太强，避免频繁切换）
         if current == CatState.SIT:
-            weights[CatState.SIT] *= 0.5
-            weights[CatState.WALK] += 8
+            weights[CatState.SIT] *= 0.65  # was 0.5（太低导致频繁切换）
+            weights[CatState.WALK] += 5   # was 8（温和鼓励走动）
 
         self._suppress_repeat(weights)
 
