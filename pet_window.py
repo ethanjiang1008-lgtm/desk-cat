@@ -175,9 +175,11 @@ class PetWindow(QWidget):
 
     # —— 渲染位置 ——
     def _rel_to_pixel(self, rx, ry, sprite):
+        # 注意：精灵是窗口子控件，move() 用窗口内坐标；不要加 r.x()/r.y() 屏幕偏移，
+        # 否则会定位到窗口外被裁剪（这是此前宠物不显示的原因）。
         r = self._area_rect
-        cx = r.x() + rx * r.width()
-        cy = r.y() + ry * r.height()
+        cx = rx * r.width()
+        cy = ry * r.height()
         return int(cx - sprite.width() / 2), int(cy - sprite.height())
 
     def _update_sprites(self):
@@ -189,10 +191,10 @@ class PetWindow(QWidget):
             self.inter_sprite.show()
             self.inter_sprite.set_action(self.director.active, 1)
             x, y = self._rel_to_pixel(mx, my, self.inter_sprite)
-            # 叠加层以中点为底部中心
+            # 叠加层以中点为底部中心（窗口内坐标，不加 r.x()/r.y()）
             r = self._area_rect
-            cx = r.x() + mx * r.width()
-            cy = r.y() + my * r.height()
+            cx = mx * r.width()
+            cy = my * r.height()
             self.inter_sprite.move(int(cx - self.inter_sprite.width() / 2),
                                    int(cy - self.inter_sprite.height()))
             self.inter_sprite.raise_()
@@ -338,8 +340,8 @@ class PetWindow(QWidget):
         cat = self.cat_a if self.cat_a.data.hunger < self.cat_b.data.hunger else self.cat_b
         msg = "该喝水啦～" if kind == "drink" else "该吃饭啦～"
         r = self._area_rect
-        bx = r.x() + cat.data.x * r.width()
-        by = r.y() + cat.data.y * r.height() - 8
+        bx = cat.data.x * r.width()
+        by = cat.data.y * r.height() - 8
         self.bubble.show_msg(msg, bx, by)
         # 猫走向用户（屏幕中下）
         cat.walk_target = (0.5, 0.85) if kind == "drink" else (BOWL_POS["food"][0], BOWL_POS["food"][1])
